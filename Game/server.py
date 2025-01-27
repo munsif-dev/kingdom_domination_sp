@@ -1,48 +1,32 @@
 import socket
-from _thread import *
+from _thread import start_new_thread
 import pickle
 from game import Game
 
-server = "192.168.177.2"
-port = 5555
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-try:
-    s.bind((server, port))
-except socket.error as e:
-    print(str(e))
-
-s.listen()
-print("Waiting for a connection, Server Started")
-
-connected = set()
-games = {}
-idCount = 0
-
 def threaded_client(conn, player, gameId):
     global idCount
+    print(str.encode(str(player)))
     conn.send(str.encode(str(player)))
-
-    reply = ""
+    
     while True:
         try:
             data = conn.recv(4096).decode()
-
-            if gameId in games:
-                game = games[gameId]
-
-                if not data:
-                    break
-                else:
-                    if data == "reset":
-                        game.resetWent()
-                    elif data != "get":
-                        game.play(player, data)
-
-                    conn.sendall(pickle.dumps(game))
-            else:
+            print(data)
+            if not data:
                 break
+            if data.startswith("get"):
+                response= pickle.dumps(games[gameId])
+                print("response", response)
+                conn.sendall(response)
+                print("Sending game state") # Debugging
+            elif data.startswith("get_question"):
+                _, index = data.split()
+                question = games[gameId].get_question(int(index))
+                conn.sendall(pickle.dumps(question))
+            elif data.startswith("answer"):
+                _, index, answer = data.split()
+                correct = games[gameId].answer_question(int(index), player, answer)
+                conn.sendall(pickle.dumps(correct))
         except:
             break
 
@@ -55,19 +39,33 @@ def threaded_client(conn, player, gameId):
     idCount -= 1
     conn.close()
 
+server = "192.168.177.2"
+port = 5555
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+try:
+    s.bind((server, port))
+except socket.error as e:
+    print(str(e))
+
+s.listen(2)
+print("Waiting for a connection, Server Started")
+
+connected = set()
+games = {}
+idCount = 0
+
 while True:
     conn, addr = s.accept()
     print("Connected to:", addr)
 
     idCount += 1
-    p = (idCount - 1) % 3  # Player number 0, 1, or 2
-    gameId = (idCount - 1) // 3  # Grouping players into games of 3
-    if idCount % 3 == 1:
+    gameId = (idCount - 1) // 2
+    if idCount % 2 == 1:
         games[gameId] = Game(gameId)
-        print("Creating a new game... game ID:", gameId)
+        print("Creating a new game...")
     else:
-        if idCount % 3 == 0:
-            games[gameId].ready = True  # The game starts when the third player joins
-            p = 2
+        games[gameId].ready = True
 
-    start_new_thread(threaded_client, (conn, p, gameId))
+    start_new_thread(threaded_client, (conn, idCount % 2, gameId))

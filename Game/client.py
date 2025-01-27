@@ -1,6 +1,7 @@
 import pygame
-from network import Network
 import pickle
+from network import Network
+
 pygame.font.init()
 
 width = 700
@@ -8,117 +9,81 @@ height = 700
 win = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Client")
 
-
-class Button:
-    def __init__(self, text, x, y, color):
-        self.text = text
+class Ball:
+    def __init__(self, x, y, radius, color=(0, 0, 255)):
         self.x = x
         self.y = y
+        self.radius = radius
         self.color = color
-        self.width = 150
-        self.height = 100
 
     def draw(self, win):
-        pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.height))
-        font = pygame.font.SysFont("comicsans", 40)
-        text = font.render(self.text, 1, (255,255,255))
-        win.blit(text, (self.x + round(self.width/2) - round(text.get_width()/2), self.y + round(self.height/2) - round(text.get_height()/2)))
+        pygame.draw.circle(win, self.color, (self.x, self.y), self.radius)
 
     def click(self, pos):
-        x1 = pos[0]
-        y1 = pos[1]
-        if self.x <= x1 <= self.x + self.width and self.y <= y1 <= self.y + self.height:
-            return True
+        distance = ((self.x - pos[0]) ** 2 + (self.y - pos[1]) ** 2) ** 0.5
+        return distance <= self.radius
+
+def redraw_window(win, game, balls):
+    win.fill((255, 255, 255))
+    for index, ball in enumerate(balls):
+        if game.balls[index] is None:
+            ball.color = (0, 0, 255)
+        elif game.balls[index] == 0:
+            ball.color = (255, 0, 0)
         else:
-            return False
-
-
-def redrawWindow(win, game, p):
-    win.fill((128,128,128))
-
-    if not(game.connected()):
-        font = pygame.font.SysFont("comicsans", 80)
-        text = font.render("Waiting for Player...", 1, (255,0,0), True)
-        win.blit(text, (width/2 - text.get_width()/2, height/2 - text.get_height()/2))
-    else:
-        font = pygame.font.SysFont("comicsans", 60)
-        text = font.render("Your Move", 1, (0, 255,255))
-        win.blit(text, (80, 200))
-
-        text = font.render("Opponents", 1, (0, 255, 255))
-        win.blit(text, (380, 200))
-
-        move1 = game.get_player_move(0)
-        move2 = game.get_player_move(1)
-        if game.bothWent():
-            text1 = font.render(move1, 1, (0,0,0))
-            text2 = font.render(move2, 1, (0, 0, 0))
-        else:
-            if game.p1Went and p == 0:
-                text1 = font.render(move1, 1, (0,0,0))
-            elif game.p1Went:
-                text1 = font.render("Locked In", 1, (0, 0, 0))
-            else:
-                text1 = font.render("Waiting...", 1, (0, 0, 0))
-
-            if game.p2Went and p == 1:
-                text2 = font.render(move2, 1, (0,0,0))
-            elif game.p2Went:
-                text2 = font.render("Locked In", 1, (0, 0, 0))
-            else:
-                text2 = font.render("Waiting...", 1, (0, 0, 0))
-
-        if p == 1:
-            win.blit(text2, (100, 350))
-            win.blit(text1, (400, 350))
-        else:
-            win.blit(text1, (100, 350))
-            win.blit(text2, (400, 350))
-
-        for btn in btns:
-            btn.draw(win)
-
+            ball.color = (0, 255, 0)
+        ball.draw(win)
     pygame.display.update()
 
+def draw_text(win, text, pos, size, color):
+    font = pygame.font.SysFont("comicsans", size)
+    render = font.render(text, True, color)
+    win.blit(render, pos)
 
-btns = [Button("Rock", 50, 500, (0,0,0)), Button("Scissors", 250, 500, (255,0,0)), Button("Paper", 450, 500, (0,255,0))]
+def draw_button(win, text, pos, size, color, bg):
+    # Ensure 'size' here refers to the font size, not the button size
+    # Let's say 'font_size' should be an integer value you pass to the function
+    font_size = 20  # or another appropriate value for your design
+    font = pygame.font.SysFont("comicsans", font_size)
+    text_render = font.render(text, True, color)
+    text_rect = text_render.get_rect(center=(pos[0] + size[0] // 2, pos[1] + size[1] // 2))
+    pygame.draw.rect(win, bg, (pos[0], pos[1], size[0], size[1]))
+    win.blit(text_render, text_rect)
+    return text_rect
+
+def draw_overlay(win, question, options):
+    # Cover the entire window with a semi-transparent overlay
+    overlay = pygame.Surface((width, height))
+    overlay.set_alpha(128)  # Transparency level
+    overlay.fill((0, 0, 0))
+    win.blit(overlay, (0, 0))
+
+    # Draw the question
+    draw_text(win, question, (50, 50), 30, (255, 255, 255))
+
+    # Draw options as buttons and return their rects for click detection
+    buttons = []
+    for idx, option in enumerate(options):
+        rect = draw_button(win, option, (50, 150 + 60 * idx), (600, 50), (255, 255, 255), (100, 100, 100))
+        buttons.append(rect)
+    pygame.display.update()
+    return buttons
+
 def main():
     run = True
     clock = pygame.time.Clock()
     n = Network()
     player = int(n.getP())
     print("You are player", player)
+    balls = [Ball(100 * (i % 5) + 50, 100 * (i // 5) + 50, 30) for i in range(10)]
+    question_active = False
+    option_buttons = []
 
     while run:
-        clock.tick(60)
-        try:
-            game = n.send("get")
-        except:
-            run = False
-            print("Couldn't get game")
-            break
-
-        if game.bothWent():
-            redrawWindow(win, game, player)
-            pygame.time.delay(500)
-            try:
-                game = n.send("reset")
-            except:
-                run = False
-                print("Couldn't get game")
-                break
-
-            font = pygame.font.SysFont("comicsans", 90)
-            if (game.winner() == 1 and player == 1) or (game.winner() == 0 and player == 0):
-                text = font.render("You Won!", 1, (255,0,0))
-            elif game.winner() == -1:
-                text = font.render("Tie Game!", 1, (255,0,0))
-            else:
-                text = font.render("You Lost...", 1, (255, 0, 0))
-
-            win.blit(text, (width/2 - text.get_width()/2, height/2 - text.get_height()/2))
-            pygame.display.update()
-            pygame.time.delay(2000)
+        if not question_active:
+            response = n.send("get")
+            game = pickle.loads(response)
+            redraw_window(win, game, balls)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -127,37 +92,30 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
-                for btn in btns:
-                    if btn.click(pos) and game.connected():
-                        if player == 0:
-                            if not game.p1Went:
-                                n.send(btn.text)
-                        else:
-                            if not game.p2Went:
-                                n.send(btn.text)
+                if not question_active:
+                    for i, ball in enumerate(balls):
+                        if ball.click(pos):
+                            response = n.send(f"get_question {i}")
+                            game = pickle.loads(response)
+                            active_question = game.get_question(i)
+                            option_buttons = draw_overlay(win, active_question['question'], active_question['options'])
+                            question_active = True
+                            break
+                else:
+                    for idx, rect in enumerate(option_buttons):
+                        if rect.collidepoint(pos):
+                            user_answer = active_question['options'][idx]
+                            response = n.send(f"answer {i} {user_answer}")
+                            correct = pickle.loads(response)
+                            if correct:
+                                print("Correct!")
+                            else:
+                                print("Wrong!")
+                            question_active = False
+                            pygame.display.update()  # Redraw the original game window
+                            break
 
-        redrawWindow(win, game, player)
+    pygame.quit()
 
-def menu_screen():
-    run = True
-    clock = pygame.time.Clock()
-
-    while run:
-        clock.tick(60)
-        win.fill((128, 128, 128))
-        font = pygame.font.SysFont("comicsans", 60)
-        text = font.render("Click to Play!", 1, (255,0,0))
-        win.blit(text, (100,200))
-        pygame.display.update()
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                run = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                run = False
-
+if __name__ == "__main__":
     main()
-
-while True:
-    menu_screen()
