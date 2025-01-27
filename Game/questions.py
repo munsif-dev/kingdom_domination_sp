@@ -11,8 +11,8 @@ questions = {
     },
     3: {
         "question": "Who wrote 'Macbeth'?",
-        "options": ["William Shakespeare", "Charles Dickens", "Leo Tolstoy", "Mark Twain"],
-        "answer": "William Shakespeare"
+        "options": ["William", "Charles ", "Leo ", "Mark "],
+        "answer": "William"
     },
     4: {
         "question": "What is the largest planet in our solar system?",
@@ -41,8 +41,8 @@ questions = {
     },
     9: {
         "question": "Who painted the Mona Lisa?",
-        "options": ["Leonardo da Vinci", "Vincent Van Gogh", "Pablo Picasso", "Claude Monet"],
-        "answer": "Leonardo da Vinci"
+        "options": ["Leonardo", "Vincent", "Pablo", "Claude"],
+        "answer": "Leonardo"
     },
     10: {
         "question": "What is the hardest natural substance on Earth?",
