@@ -84,6 +84,7 @@ def draw_overlay(win, question, options):
     return buttons
 
 
+
 positions = [
     (200, 150), 
     (500, 150),  # Top-right region
@@ -114,6 +115,20 @@ def main():
             response = n.send("get")
             game = pickle.loads(response)
             redraw_window(win, game, balls, player)
+
+        if game.all_balls_claimed():
+            winner, player_0_score, player_1_score = game.get_winner()
+            overlay = pygame.Surface((width, height))
+            overlay.set_alpha(164)  # Transparency level
+            overlay.fill((0, 0, 0))
+            win.blit(overlay, (0, 0))
+            draw_text(win, f"Winner: {winner}", (width // 2 - 170, height // 2 - 50), 40, (255, 255, 255))
+            draw_text(win, f"Player 1 (Red): {player_0_score}", (width // 2 - 170, height // 2), 30, (255, 0, 0))
+            draw_text(win, f"Player 2 (Green): {player_1_score}", (width // 2 - 170, height // 2 + 40), 30, (0, 255, 0))
+            pygame.display.update()
+            pygame.time.delay(15000)  # Display results for 5 seconds
+            run = False  # End the game
+            break
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

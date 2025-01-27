@@ -23,5 +23,19 @@ class Game:
     def all_balls_claimed(self):
         return all(ball is not None for ball in self.balls)
 
-    def get_score(self):
-        return self.balls.count(0), self.balls.count(1)  # Scores for player 0 and player 1
+   
+    def get_scores(self):
+        # Calculate the scores for each player
+        player_0_score = self.balls.count(0)
+        player_1_score = self.balls.count(1)
+        return player_0_score, player_1_score
+
+    def get_winner(self):
+        # Determine the winner based on scores
+        player_0_score, player_1_score = self.get_scores()
+        if player_0_score > player_1_score:
+            return "Player 1 (Red)", player_0_score, player_1_score
+        elif player_1_score > player_0_score:
+            return "Player 2 (Green)", player_0_score, player_1_score
+        else:
+            return "It's a Tie!", player_0_score, player_1_score
