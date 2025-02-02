@@ -39,7 +39,7 @@ def threaded_client(conn, player, gameId):
     idCount -= 1
     conn.close()
 
-server = "192.168.177.2"
+server = "192.168.33.2"
 port = 5555
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
